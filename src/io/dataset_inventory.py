@@ -4,7 +4,7 @@ from pathlib import Path
 from configs.configs import GeoSeisSettings
 
 # import pandas as pd
-# from obspy import Stream, read, read_inventory
+from obspy import Stream, read, read_inventory
 
 
 class DatasetInventory:
@@ -52,6 +52,19 @@ class DatasetInventory:
             print(path)
 
         return dataset_files
+    
+    def read_single_file(self, file):
+        """Read a single miniseed or any other data format file"""
+        if not file:
+            raise FileNotFoundError("File does not exist")
+        
+        path = file[0]
+        stream = read(path)
+        
+        print(f"\nContents of the first MiniSeed File ({path})")
+        print(stream)
+        
+        return stream
 
     def __str__(self):
         return f"Dataset Inventory Directory: (settings={self.settings})"
@@ -79,6 +92,9 @@ if __name__ == "__main__":
     settings = GeoSeisSettings()
     inventory = DatasetInventory(settings)
     validated_settings = inventory.get_dir_and_check()
-    print(validated_settings.RAW_DATA_DIR)
-    print(validated_settings.RAW_DIR)
-    print(validated_settings.PROJECT_ROOT)
+    # print(validated_settings.RAW_DATA_DIR)
+    # print(validated_settings.RAW_DIR)
+    # print(validated_settings.PROJECT_ROOT)
+    dataset_files = inventory.find_all_files(file_extension=".miniseed")
+    
+    
