@@ -3,7 +3,7 @@ from pathlib import Path
 from pydantic_settings import BaseSettings
 
 
-class GeoseisSettings(BaseSettings):
+class GeoSeisSettings(BaseSettings):
     """General Settings for the Geoseis Project.
 
     Args:
