@@ -4,7 +4,7 @@ from pathlib import Path
 from configs.configs import GeoSeisSettings
 
 # import pandas as pd
-# from obspy import Stream, read, read_inventory
+from obspy import Stream, read, read_inventory
 
 
 class DatasetInventory:
@@ -52,6 +52,48 @@ class DatasetInventory:
             print(path)
 
         return dataset_files
+    
+    def read_single_file_and_traces(self, file):
+        """Read a single miniseed or any other data format file"""
+        if not file:
+            raise FileNotFoundError("File does not exist")
+        
+        path = file[0]
+        stream = read(path)
+        
+        print(f"\nContents of the first MiniSeed File ({path})")
+        print(stream)
+        
+        trace = stream[0]
+        
+        print(f"\nTrace Information:\n{trace}")
+        print(trace.stats)
+        
+        return (stream, trace)
+    
+    def inspect_file(self, file_path: Path):
+        """This Method inspects the file for contents"""
+        
+        stream = read(file_path)
+        
+        rows = []
+        
+        for trace in stream:
+            stats = trace.stats
+            
+            rows.append({
+                "file": str(file_path.relative_to(self.settings.RAW_DATA_DIR)),
+                "network": stats.network,
+                "station": stats.station,
+                "channel": stats.channel,
+                "starttime": stats.starttime,
+                "endtime": stats.endtime,
+                "sampling_rate": stats.sampling_rate,
+                "number_of_samples": stats.npts,
+                "duration_time": trace.stats.endtime - trace.stats.starttime,
+            })
+        
+        return rows
 
     def __str__(self):
         return f"Dataset Inventory Directory: (settings={self.settings})"
@@ -79,6 +121,11 @@ if __name__ == "__main__":
     settings = GeoSeisSettings()
     inventory = DatasetInventory(settings)
     validated_settings = inventory.get_dir_and_check()
-    print(validated_settings.RAW_DATA_DIR)
-    print(validated_settings.RAW_DIR)
-    print(validated_settings.PROJECT_ROOT)
+    # print(validated_settings.RAW_DATA_DIR)
+    # print(validated_settings.RAW_DIR)
+    # print(validated_settings.PROJECT_ROOT)
+    dataset_files = inventory.find_all_files(file_extension=".miniseed")
+    single_file = inventory.read_single_file_and_traces(dataset_files)
+    inspect = inventory.inspect_file(file_path=dataset_files[0])
+    print(inspect)
+    
