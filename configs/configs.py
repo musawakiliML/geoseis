@@ -1,7 +1,15 @@
 from pathlib import Path
 
-PROJECT_ROOT = Path.home() / "Documents" / "Gthub" / "Lady-knox-analysis"
+from pydantic_settings import BaseSettings
 
-RAW_DATA_DIR = PROJECT_ROOT / "data" / "raw" / "LK"
 
-RAW_DIR = PROJECT_ROOT / "data" / "raw"
+class GeoseisSettings(BaseSettings):
+    """General Settings for the Geoseis Project.
+
+    Args:
+        BaseSettings (_type_): Inherit Pydantic BaseSettings Class for environment variable management.
+    """
+
+    PROJECT_ROOT: Path = Path.home() / "Documents" / "GitHub" / "Lady-knox-analysis"
+    RAW_DATA_DIR: Path = PROJECT_ROOT / "data" / "raw" / "LK"
+    RAW_DIR: Path = PROJECT_ROOT / "data" / "raw"
