@@ -3,7 +3,7 @@ from pathlib import Path
 
 from configs.configs import GeoSeisSettings
 
-# import pandas as pd
+import pandas as pd
 from obspy import Stream, read, read_inventory
 
 
@@ -92,8 +92,26 @@ class DatasetInventory:
                 "number_of_samples": stats.npts,
                 "duration_time": trace.stats.endtime - trace.stats.starttime,
             })
-        
+            
         return rows
+    
+    def inspect_files_dataframe(self, all_files):
+        """Inspect all files and generate a dataframe for inspection
+
+        Args:
+            all_files (_type_): all mseed files
+        
+        Return: dataframe
+        """
+        
+        records = []
+        
+        for path in all_files:
+            records.extend(self.inspect_file(path))
+            
+        inventory_df = pd.DataFrame(records)
+        
+        return inventory_df
 
     def __str__(self):
         return f"Dataset Inventory Directory: (settings={self.settings})"
