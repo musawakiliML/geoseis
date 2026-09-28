@@ -17,31 +17,44 @@ class StationData:
     metadata: pd.DataFrame
     all_metadata: pd.DataFrame
 
-    # def get_size(self) -> pd.Series:
-    #     """Return trace-record counts per station and channel."""
-    #     return self.metadata.groupby(["station", "channel"]).size()
+    def get_size(self) -> pd.Series:
+        """ Return trace-record counts per station and channel.
 
-    # def get_aggregate(self) -> pd.DataFrame:
-    #     """Summarize file records, time bounds, rates, and samples by channel."""
-    #     return self.metadata.groupby(["station", "channel"]).agg(
-    #         files=("file", "count"),
-    #         start=("starttime", "min"),
-    #         end=("endtime", "max"),
-    #         sampling_rate=("sampling_rate", "unique"),
-    #         total_samples=("number_of_samples", "sum"),
-    #     )
+        Returns:
+            pd.Series: _description_
+        """
+        return self.metadata.groupby(["station", "channel"]).size()
 
-    # def get_coverage(self) -> pd.DataFrame:
-    #     """Return start/end bounds and record counts by station and channel."""
-    #     return (
-    #         self.metadata.groupby(["station", "channel"])
-    #         .agg(
-    #             start=("starttime", "min"),
-    #             end=("endtime", "max"),
-    #             files=("file", "count"),
-    #         )
-    #         .reset_index()
-    #     )
+    def get_aggregate(self) -> pd.DataFrame:
+        """ Summarize file records, time bounds, rates, and samples by channel.
+
+        Returns:
+            pd.DataFrame: _description_
+        """
+        
+        return self.metadata.groupby(["station", "channel"]).agg(
+            files=("file", "count"),
+            start=("starttime", "min"),
+            end=("endtime", "max"),
+            sampling_rate=("sampling_rate", "unique"),
+            total_samples=("number_of_samples", "sum"),
+        )
+
+    def get_coverage(self) -> pd.DataFrame:
+        """ Return start/end bounds and record counts by station and channel.
+
+        Returns:
+            pd.DataFrame: _description_
+        """
+        return (
+            self.metadata.groupby(["station", "channel"])
+            .agg(
+                start=("starttime", "min"),
+                end=("endtime", "max"),
+                files=("file", "count"),
+            )
+            .reset_index()
+        )
     
     def get_stations_size(self, all_files: pd.DataFrame | None = None) -> pd.DataFrame | pd.Series:
         """ Get All stations Sizes by channels
