@@ -1,4 +1,5 @@
 # Dataset Inventory Class
+from dataclasses import dataclass
 from pathlib import Path
 
 from configs.configs import GeoSeisSettings, logging
@@ -7,6 +8,11 @@ import pandas as pd
 from obspy import Stream, read, read_inventory
 from obspy.geodetics import gps2dist_azimuth
 
+@dataclass
+class StationData:
+    network: str
+    code: str
+    files: list[Path]
 class DatasetInventory:
     def __init__(self, settings: GeoSeisSettings):
         self.settings = settings
@@ -142,7 +148,7 @@ class DatasetInventory:
             for item in range(len(xml_files)):
                 inventory = read_inventory(xml_files[item])
 
-                logging.info(f"Inventory Details For StationXML File {str(xml_files[item])}")
+                logging.info(f"Inventory Details For StationXML File {xml_files[item]!s}")
                 logging.info(inventory)
                 
                 records_stationXML.append(inventory)
@@ -150,7 +156,7 @@ class DatasetInventory:
             return records_stationXML
         else:
             inventory = read_inventory(xml_files[0])
-            logging.info(f"Returning Inventory Info StationXML {str(xml_files[0])}")
+            logging.info(f"Returning Inventory Info StationXML {xml_files[0]!s}")
         
             return inventory
     def inspect_stations(self, file_name: str):
@@ -186,28 +192,57 @@ class DatasetInventory:
                     continue
                 distance_m, azimuth, back_azimuth = gps2dist_azimuth(
                                                         coords_a[0], coords_a[1], coords_b[0], coords_b[1])
-                logging.info(f"Distance between {station_a} and {station_b}: {distance_m:.2f} meters, Azimuth: {azimuth:.2f} degrees, Back Azimuth: {back_azimuth:.2f} degrees")       
+                logging.info(f"Distance between {station_a} and {station_b}: {distance_m:.2f} meters, Azimuth: {azimuth:.2f} degrees, Back Azimuth: {back_azimuth:.2f} degrees")
+    
+    def build_stations(self, all_files: list[Path] | None = None) -> dict[tuple[str, str], StationData]:
+        """_summary_
 
+        Args:
+            all_files (list[Path] | None, optional): _description_. Defaults to None.
+
+        Returns:
+            dict[tuple[str, str], StationData]: _description_
+        """
+        if all_files is None:
+            all_files = self.find_all_files()
+        
+        metadata = self.inspect_files_dataframe(all_files)
+        stations = {}
+        
+        if metadata.empty:
+            return stations
+        
+        for (network, code), rows in metadata.groupby(["network", "station"]):
+            files = sorted({
+                self.settings.RAW_DATA_DIR / Path(relative_path)
+                for relative_path in rows["file"]
+            })
+            key = (network, code)
+            stations[key] = StationData(network=network, code=code, files=files)
+        
+        return stations
+          
+          
+          
+          
     def __str__(self):
         return f"Dataset Inventory Directory: (settings={self.settings})"
+    
+
+
+    
+    
+    
+    
 
     # TODO: Add methods for inventory management, such as filtering, summarizing, and exporting data.
     # Explore the data to understand its structure and contents.
     # Station and channel information, start and end times, sampling rates, and total samples are key attributes to consider.
     # Gaps in the data can be identified by analyzing the start and end times of each file, as well as the sampling rates and total samples.
     # Inventory information can be exported to a CSV or Excel file for further analysis or sharing with others.
-    """
-                ├── Files ✓
-                 ├── Stations ✓
-                 ├── Channels ✓
-                 ├── Sampling rates ✓
-                 ├── Spatial metadata ✓
-                 ├── Physical units ✓
-                 ├── Instrument response ✓
-                 ├── Recording windows ✓
-                 ├── Gaps/overlaps ✓
-                 └── Common window ✓
-    """
+    
+    
+    
 
 
 if __name__ == "__main__":
@@ -226,3 +261,6 @@ if __name__ == "__main__":
     
     stations = inventory.inspect_stations(file_name="stat_locations.csv")
     stations_geo = inventory.inspect_station_geometry(locations=stations)
+    
+    all_stations = inventory.build_stations()
+    logging.info(all_stations)
