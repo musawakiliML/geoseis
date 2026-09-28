@@ -5,6 +5,7 @@ from configs.configs import GeoSeisSettings, logging
 
 import pandas as pd
 from obspy import Stream, read, read_inventory
+from obspy.geodetics import gps2dist_azimuth
 
 class DatasetInventory:
     def __init__(self, settings: GeoSeisSettings):
@@ -152,6 +153,40 @@ class DatasetInventory:
             logging.info(f"Returning Inventory Info StationXML {str(xml_files[0])}")
         
             return inventory
+    def inspect_stations(self, file_name: str):
+        """Inspect The station locations provided if available
+
+        Args:
+            file_path (Path): station locations
+        """
+
+        locations  = pd.read_csv(self.settings.RAW_DIR / file_name)
+        
+        logging.info("The Locations of the available stations")
+        logging.info(locations)
+        
+        return locations
+    
+    def inspect_station_geometry(self, locations: pd.DataFrame):
+        """This method calculates the station geometry 
+
+        Args:
+            locations (pd.DataFrame): Locations with lat, long and elevation
+        
+        Return: distances
+        """
+        stations = {}
+        
+        for i in range(len(locations)):
+            stations[locations.get("Station")[i]] = (locations.get("Latitude")[i], locations.get("Longitude")[i])
+            
+        for station_a, coords_a in stations.items():
+            for station_b, coords_b in stations.items():
+                if station_a >= station_b:
+                    continue
+                distance_m, azimuth, back_azimuth = gps2dist_azimuth(
+                                                        coords_a[0], coords_a[1], coords_b[0], coords_b[1])
+                logging.info(f"Distance between {station_a} and {station_b}: {distance_m:.2f} meters, Azimuth: {azimuth:.2f} degrees, Back Azimuth: {back_azimuth:.2f} degrees")       
 
     def __str__(self):
         return f"Dataset Inventory Directory: (settings={self.settings})"
@@ -178,7 +213,7 @@ class DatasetInventory:
 if __name__ == "__main__":
     settings = GeoSeisSettings()
     inventory = DatasetInventory(settings)
-    validated_settings = inventory.get_dir_and_check()
+    # validated_settings = inventory.get_dir_and_check()
     # print(validated_settings.RAW_DATA_DIR)
     # print(validated_settings.RAW_DIR)
     # print(validated_settings.PROJECT_ROOT)
@@ -186,6 +221,8 @@ if __name__ == "__main__":
     # single_file = inventory.read_single_file_and_traces(dataset_files)
     # inspect = inventory.inspect_file(file_path=dataset_files[0])
     # print(inspect)
-    stationxml = inventory.inspect_stationXML(folder_path=validated_settings.RAW_DIR, all=False)
-    print(stationxml)
+    # stationxml = inventory.inspect_stationXML(folder_path=validated_settings.RAW_DIR, all=False)
+    # print(stationxml)
     
+    stations = inventory.inspect_stations(file_name="stat_locations.csv")
+    stations_geo = inventory.inspect_station_geometry(locations=stations)
