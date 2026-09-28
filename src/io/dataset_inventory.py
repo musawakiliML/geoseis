@@ -1,11 +1,112 @@
 # Dataset Inventory Class
+from dataclasses import dataclass
 from pathlib import Path
 
-from configs.configs import GeoSeisSettings
+import pandas as pd
+from obspy import read, read_inventory
+from obspy.geodetics import gps2dist_azimuth
 
-# import pandas as pd
-from obspy import Stream, read, read_inventory
+from configs.configs import GeoSeisSettings, logging
 
+
+@dataclass
+class StationData:
+    network: str
+    code: str
+    files: list[Path]
+    metadata: pd.DataFrame
+    all_metadata: pd.DataFrame
+
+    def get_size(self) -> pd.Series:
+        """ Return trace-record counts per station and channel.
+
+        Returns:
+            pd.Series: _description_
+        """
+        return self.metadata.groupby(["station", "channel"]).size()
+
+    def get_aggregate(self) -> pd.DataFrame:
+        """ Summarize file records, time bounds, rates, and samples by channel.
+
+        Returns:
+            pd.DataFrame: _description_
+        """
+        
+        return self.metadata.groupby(["station", "channel"]).agg(
+            files=("file", "count"),
+            start=("starttime", "min"),
+            end=("endtime", "max"),
+            sampling_rate=("sampling_rate", "unique"),
+            total_samples=("number_of_samples", "sum"),
+        )
+
+    def get_coverage(self) -> pd.DataFrame:
+        """ Return start/end bounds and record counts by station and channel.
+
+        Returns:
+            pd.DataFrame: _description_
+        """
+        return (
+            self.metadata.groupby(["station", "channel"])
+            .agg(
+                start=("starttime", "min"),
+                end=("endtime", "max"),
+                files=("file", "count"),
+            )
+            .reset_index()
+        )
+    
+    def get_stations_size(self, all_files: pd.DataFrame | None = None) -> pd.DataFrame | pd.Series:
+        """ Get All stations Sizes by channels
+        
+        Args:
+            all_files (list[Path] | None, optional): _description_. Defaults to None.
+
+        Returns:
+            pd.DataFrame | pd.Series: _description_
+        """
+        return all_files.groupby(["station", "channel"]).size()
+
+    def get_stations_aggregate(self, all_files: pd.DataFrame | None = None) -> pd.DataFrame | pd.Series:
+        """ Get All Stations Aggregate based on channels
+
+        Args:
+            all_files (list[Path] | None, optional): _description_. Defaults to None.
+
+        Returns:
+            pd.DataFrame | pd.Series: _description_
+        """
+        return all_files.groupby(
+            ["station", "channel"]
+        ).agg(
+            files=("file", "count"),
+            start=("starttime", "min"),
+            end=("endtime", "max"),
+            sampling_rate=("sampling_rate", "unique"),
+            total_sanples=("number_of_samples", "sum")
+        )
+        
+    def get_stations_coverage(self, all_files: pd.DataFrame | None = None) -> pd.DataFrame | pd.Series:
+        """ Get Station Coverage by channels
+
+        Args:
+            all_files (pd.DataFrame | None, optional): _description_. Defaults to None.
+
+        Returns:
+            pd.DataFrame | pd.Series: _description_
+        """
+        coverage = (
+            all_files
+            .groupby(
+                ["station", "channel"])
+            .agg(
+                starts=("starttime", "min"),
+                end=("endtime", "max"),
+                files=("file", "count"),
+                )
+            .reset_index()
+            )
+        return coverage
 
 class DatasetInventory:
     def __init__(self, settings: GeoSeisSettings):
@@ -26,19 +127,22 @@ class DatasetInventory:
         validated_paths = {}
         for name, path in path_map.items():
             path = Path(path)
-            print(f"Checking if {name} directory exists: {path}")
+
+            logging.info(f"Checking if {name} directory exists: {path}")
 
             if not path.exists():
                 raise FileNotFoundError(f"{name} directory does not exist: {path}")
 
             for item in path.iterdir():
-                print(f" - {item.name}")
+                logging.info(f" - {item.name}")
 
             validated_paths[name] = path
 
         return self.settings
 
-    def find_all_files(self, file_extension: str = ".miniseed", source_dir: Path | None = None):
+    def find_all_files(
+        self, file_extension: str = ".miniseed", source_dir: Path | None = None
+    ):
         """Find all dataset files in the selected directory with the given extension."""
         if source_dir is None:
             source_dir = self.settings.RAW_DATA_DIR
@@ -46,54 +150,202 @@ class DatasetInventory:
         source_dir = Path(source_dir)
         dataset_files = sorted(source_dir.rglob("*" + file_extension))
 
-        print(f"Found {len(dataset_files)} {file_extension.upper()} files in {source_dir}.")
+        logging.info(
+            f"Found {len(dataset_files)} {file_extension.upper()} files in {source_dir}."
+        )
 
         for path in dataset_files[:10]:
-            print(path)
+            logging.info(path)
 
         return dataset_files
-    
+
     def read_single_file_and_traces(self, file):
         """Read a single miniseed or any other data format file"""
         if not file:
             raise FileNotFoundError("File does not exist")
-        
+
         path = file[0]
         stream = read(path)
-        
-        print(f"\nContents of the first MiniSeed File ({path})")
-        print(stream)
-        
+
+        logging.info(f"\nContents of the first MiniSeed File ({path})")
+        logging.info(stream)
+
         trace = stream[0]
-        
-        print(f"\nTrace Information:\n{trace}")
-        print(trace.stats)
-        
+
+        logging.info(f"\nTrace Information:\n{trace}")
+        logging.info(trace.stats)
+
         return (stream, trace)
-    
+
     def inspect_file(self, file_path: Path):
         """This Method inspects the file for contents"""
-        
+
         stream = read(file_path)
-        
+
         rows = []
-        
+
         for trace in stream:
             stats = trace.stats
-            
-            rows.append({
-                "file": str(file_path.relative_to(self.settings.RAW_DATA_DIR)),
-                "network": stats.network,
-                "station": stats.station,
-                "channel": stats.channel,
-                "starttime": stats.starttime,
-                "endtime": stats.endtime,
-                "sampling_rate": stats.sampling_rate,
-                "number_of_samples": stats.npts,
-                "duration_time": trace.stats.endtime - trace.stats.starttime,
-            })
-        
+
+            rows.append(
+                {
+                    "file": str(file_path.relative_to(self.settings.RAW_DATA_DIR)),
+                    "network": stats.network,
+                    "station": stats.station,
+                    "channel": stats.channel,
+                    "starttime": stats.starttime,
+                    "endtime": stats.endtime,
+                    "sampling_rate": stats.sampling_rate,
+                    "number_of_samples": stats.npts,
+                    "duration_time": trace.stats.endtime - trace.stats.starttime,
+                    "encoding": getattr(stats.mseed, "encoding", None),
+                }
+            )
+
         return rows
+
+    def inspect_files_dataframe(self, all_files):
+        """Inspect all files and generate a dataframe for inspection
+
+        Args:
+            all_files (_type_): all mseed files
+
+        Return: dataframe
+        """
+
+        records = []
+
+        for path in all_files:
+            records.extend(self.inspect_file(path))
+
+        inventory_df = pd.DataFrame(records)
+
+        return inventory_df
+
+    def inspect_stationXML(
+        self, folder_path: Path, extension=".xml", all: bool = True | False
+    ):
+        """Inspect The StationXML file for extra information about the equipment, networks, channels, response etc..
+
+        Args:
+            file_path (Path): File path
+
+        Return
+        """
+
+        # Check if file exists
+        if not folder_path:
+            folder_path = self.settings.RAW_DIR
+            folder_path = Path(folder_path)
+
+        xml_files = sorted(folder_path.rglob("*" + extension))
+
+        if not xml_files:
+            logging.warning("Files with .xml extension not found")
+
+        logging.info(
+            f"Found {len(xml_files)} {extension.upper()} files in {folder_path}."
+        )
+
+        records_stationXML = []
+
+        if all:
+            for item in range(len(xml_files)):
+                inventory = read_inventory(xml_files[item])
+
+                logging.info(
+                    f"Inventory Details For StationXML File {xml_files[item]!s}"
+                )
+                logging.info(inventory)
+
+                records_stationXML.append(inventory)
+
+            return records_stationXML
+        else:
+            inventory = read_inventory(xml_files[0])
+            logging.info(f"Returning Inventory Info StationXML {xml_files[0]!s}")
+
+            return inventory
+
+    def inspect_stations(self, file_name: str):
+        """Inspect The station locations provided if available
+
+        Args:
+            file_path (Path): station locations
+        """
+
+        locations = pd.read_csv(self.settings.RAW_DIR / file_name)
+
+        logging.info("The Locations of the available stations")
+        logging.info(locations)
+
+        return locations
+
+    def inspect_station_geometry(self, locations: pd.DataFrame):
+        """This method calculates the station geometry
+
+        Args:
+            locations (pd.DataFrame): Locations with lat, long and elevation
+
+        Return: distances
+        """
+        stations = {}
+
+        for i in range(len(locations)):
+            stations[locations.get("Station")[i]] = (
+                locations.get("Latitude")[i],
+                locations.get("Longitude")[i],
+            )
+
+        for station_a, coords_a in stations.items():
+            for station_b, coords_b in stations.items():
+                if station_a >= station_b:
+                    continue
+                distance_m, azimuth, back_azimuth = gps2dist_azimuth(
+                    coords_a[0], coords_a[1], coords_b[0], coords_b[1]
+                )
+                logging.info(
+                    f"Distance between {station_a} and {station_b}: {distance_m:.2f} meters, Azimuth: {azimuth:.2f} degrees, Back Azimuth: {back_azimuth:.2f} degrees"
+                )
+
+    def build_stations(
+        self, all_files: list[Path] | None = None
+    ) -> dict[tuple[str, str], StationData]:
+        """_summary_
+
+        Args:
+            all_files (list[Path] | None, optional): _description_. Defaults to None.
+
+        Returns:
+            dict[tuple[str, str], StationData]: _description_
+        """
+        if all_files is None:
+            all_files = self.find_all_files()
+
+        metadata = self.inspect_files_dataframe(all_files)
+        stations = {}
+
+        if metadata.empty:
+            return stations
+
+        for (network, code), rows in metadata.groupby(["network", "station"]):
+            files = sorted(
+                {
+                    self.settings.RAW_DATA_DIR / Path(relative_path)
+                    for relative_path in rows["file"]
+                }
+            )
+            key = (network, code)
+            stations[key] = StationData(
+                network=network,
+                code=code,
+                files=files,
+                metadata=rows.copy(),
+                all_metadata=metadata
+            )
+            logging.info(f"Rows: {rows}")
+
+        return stations
 
     def __str__(self):
         return f"Dataset Inventory Directory: (settings={self.settings})"
@@ -103,29 +355,24 @@ class DatasetInventory:
     # Station and channel information, start and end times, sampling rates, and total samples are key attributes to consider.
     # Gaps in the data can be identified by analyzing the start and end times of each file, as well as the sampling rates and total samples.
     # Inventory information can be exported to a CSV or Excel file for further analysis or sharing with others.
-    """
-                ├── Files ✓
-                 ├── Stations ✓
-                 ├── Channels ✓
-                 ├── Sampling rates ✓
-                 ├── Spatial metadata ✓
-                 ├── Physical units ✓
-                 ├── Instrument response ✓
-                 ├── Recording windows ✓
-                 ├── Gaps/overlaps ✓
-                 └── Common window ✓
-    """
 
 
 if __name__ == "__main__":
     settings = GeoSeisSettings()
     inventory = DatasetInventory(settings)
-    validated_settings = inventory.get_dir_and_check()
+    # validated_settings = inventory.get_dir_and_check()
     # print(validated_settings.RAW_DATA_DIR)
     # print(validated_settings.RAW_DIR)
     # print(validated_settings.PROJECT_ROOT)
-    dataset_files = inventory.find_all_files(file_extension=".miniseed")
-    single_file = inventory.read_single_file_and_traces(dataset_files)
-    inspect = inventory.inspect_file(file_path=dataset_files[0])
-    print(inspect)
-    
+    # dataset_files = inventory.find_all_files(file_extension=".miniseed")
+    # single_file = inventory.read_single_file_and_traces(dataset_files)
+    # inspect = inventory.inspect_file(file_path=dataset_files[0])
+    # print(inspect)
+    # stationxml = inventory.inspect_stationXML(folder_path=validated_settings.RAW_DIR, all=False)
+    # print(stationxml)
+
+    stations = inventory.inspect_stations(file_name="stat_locations.csv")
+    stations_geo = inventory.inspect_station_geometry(locations=stations)
+
+    all_stations = inventory.build_stations()
+    logging.info(all_stations)

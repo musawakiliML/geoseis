@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "geoseis"
-version = "0.1.0"
-description = ""
+version = "0.0.1"
+description = "Python package for event discovery and characterization in geothermal and seismic data."
 authors = ["Musa Adamu Wakili <musawakiliml@hotmail.com>"]
 license = "MIT"
 readme = "README.md"

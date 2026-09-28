@@ -1,6 +1,14 @@
+import logging
 from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# 1. Configure the logger
+logging.basicConfig(
+    level=logging.INFO,  # Sets the minimum log level to capture
+    format="%(asctime)s [%(levelname)s] %(message)s",  # Defines the log message layout
+    datefmt="%Y-%m-%d %H:%M:%S",  # Formats the timestamp
+)
 
 
 class GeoSeisSettings(BaseSettings):
