@@ -99,6 +99,8 @@ class StationData:
 
     def check_gaps(self):
         """This fucntions checks the gaps available in the traces records
+        Gaps in the data can be identified by analyzing the start and end times of each file,
+        as well as the sampling rates and total samples.
 
         Raises:
             FileNotFoundError: _description_
@@ -141,7 +143,15 @@ class DatasetInventory:
         return getattr(self.settings, name)
 
     def get_dir_and_check(self):
-        """Validate each configured directory and return the settings object."""
+        """Validate each configured directory and return the settings object.
+
+        Raises:
+            FileNotFoundError: _description_
+
+        Returns:
+            object: Geosettings object
+        """
+        
         path_map = {
             "PROJECT_ROOT": self.settings.PROJECT_ROOT,
             "RAW_DATA_DIR": self.settings.RAW_DATA_DIR,
@@ -166,8 +176,18 @@ class DatasetInventory:
 
     def find_all_files(
         self, file_extension: str = ".miniseed", source_dir: Path | None = None
-    ):
-        """Find all dataset files in the selected directory with the given extension."""
+    ) -> list[Path]:
+        """Find all dataset files in the selected directory with the given extension.
+
+        Args:
+            file_extension (str, optional): _description_. Defaults to ".miniseed".
+            source_dir (Path | None, optional): _description_. Defaults to None.
+
+        Returns:
+            list[Path]: List of Path
+        """
+        
+        
         if source_dir is None:
             source_dir = self.settings.RAW_DATA_DIR
 
@@ -183,8 +203,19 @@ class DatasetInventory:
 
         return dataset_files
 
-    def read_single_file_and_traces(self, file):
-        """Read a single miniseed or any other data format file"""
+    def read_single_file_and_traces(self, file) -> tuple:
+        """Read a single miniseed or any other data format file
+
+        Args:
+            file (_type_): mseed files
+
+        Raises:
+            FileNotFoundError: mseed files
+
+        Returns:
+            tuple: stream, trace
+        """
+        
         if not file:
             raise FileNotFoundError("File does not exist")
 
@@ -201,8 +232,18 @@ class DatasetInventory:
 
         return (stream, trace)
 
-    def inspect_file(self, file_path: Path):
-        """This Method inspects the file for contents"""
+    def inspect_file(self, file_path: Path) -> list:
+        """This Method inspects the file for contents
+        Explore the data to understand its structure and contents.
+        Station and channel information, start and end times, sampling rates,
+        and total samples are key attributes to consider.
+
+        Args:
+            file_path (Path): _description_
+
+        Returns:
+            list: List of files with information
+        """
 
         stream = read(file_path)
 
@@ -374,12 +415,6 @@ class DatasetInventory:
 
     def __str__(self):
         return f"Dataset Inventory Directory: (settings={self.settings})"
-
-    # TODO: Add methods for inventory management, such as filtering, summarizing, and exporting data.
-    # Explore the data to understand its structure and contents.
-    # Station and channel information, start and end times, sampling rates, and total samples are key attributes to consider.
-    # Gaps in the data can be identified by analyzing the start and end times of each file, as well as the sampling rates and total samples.
-    # Inventory information can be exported to a CSV or Excel file for further analysis or sharing with others.
 
 
 if __name__ == "__main__":
