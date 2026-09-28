@@ -14,7 +14,86 @@ class StationData:
     network: str
     code: str
     files: list[Path]
+    metadata: pd.DataFrame
+    all_metadata: pd.DataFrame
 
+    # def get_size(self) -> pd.Series:
+    #     """Return trace-record counts per station and channel."""
+    #     return self.metadata.groupby(["station", "channel"]).size()
+
+    # def get_aggregate(self) -> pd.DataFrame:
+    #     """Summarize file records, time bounds, rates, and samples by channel."""
+    #     return self.metadata.groupby(["station", "channel"]).agg(
+    #         files=("file", "count"),
+    #         start=("starttime", "min"),
+    #         end=("endtime", "max"),
+    #         sampling_rate=("sampling_rate", "unique"),
+    #         total_samples=("number_of_samples", "sum"),
+    #     )
+
+    # def get_coverage(self) -> pd.DataFrame:
+    #     """Return start/end bounds and record counts by station and channel."""
+    #     return (
+    #         self.metadata.groupby(["station", "channel"])
+    #         .agg(
+    #             start=("starttime", "min"),
+    #             end=("endtime", "max"),
+    #             files=("file", "count"),
+    #         )
+    #         .reset_index()
+    #     )
+    
+    def get_stations_size(self, all_files: pd.DataFrame | None = None) -> pd.DataFrame | pd.Series:
+        """ Get All stations Sizes by channels
+        
+        Args:
+            all_files (list[Path] | None, optional): _description_. Defaults to None.
+
+        Returns:
+            pd.DataFrame | pd.Series: _description_
+        """
+        return all_files.groupby(["station", "channel"]).size()
+
+    def get_stations_aggregate(self, all_files: pd.DataFrame | None = None) -> pd.DataFrame | pd.Series:
+        """ Get All Stations Aggregate based on channels
+
+        Args:
+            all_files (list[Path] | None, optional): _description_. Defaults to None.
+
+        Returns:
+            pd.DataFrame | pd.Series: _description_
+        """
+        return all_files.groupby(
+            ["station", "channel"]
+        ).agg(
+            files=("file", "count"),
+            start=("starttime", "min"),
+            end=("endtime", "max"),
+            sampling_rate=("sampling_rate", "unique"),
+            total_sanples=("number_of_samples", "sum")
+        )
+        
+    def get_stations_coverage(self, all_files: pd.DataFrame | None = None) -> pd.DataFrame | pd.Series:
+        """ Get Station Coverage by channels
+
+        Args:
+            all_files (pd.DataFrame | None, optional): _description_. Defaults to None.
+
+        Returns:
+            pd.DataFrame | pd.Series: _description_
+        """
+        coverage = (
+            all_files
+            .groupby(
+                ["station", "channel"])
+            .agg(
+                starts=("starttime", "min"),
+                end=("endtime", "max"),
+                files=("file", "count"),
+                )
+            .reset_index()
+            )
+        return coverage
 
 class DatasetInventory:
     def __init__(self, settings: GeoSeisSettings):
@@ -244,7 +323,14 @@ class DatasetInventory:
                 }
             )
             key = (network, code)
-            stations[key] = StationData(network=network, code=code, files=files)
+            stations[key] = StationData(
+                network=network,
+                code=code,
+                files=files,
+                metadata=rows.copy(),
+                all_metadata=metadata
+            )
+            logging.info(f"Rows: {rows}")
 
         return stations
 
