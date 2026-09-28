@@ -1,11 +1,10 @@
 # Dataset Inventory Class
 from pathlib import Path
 
-from configs.configs import GeoSeisSettings
+from configs.configs import GeoSeisSettings, logging
 
 import pandas as pd
 from obspy import Stream, read, read_inventory
-
 
 class DatasetInventory:
     def __init__(self, settings: GeoSeisSettings):
@@ -26,13 +25,14 @@ class DatasetInventory:
         validated_paths = {}
         for name, path in path_map.items():
             path = Path(path)
-            print(f"Checking if {name} directory exists: {path}")
+            
+            logging.info(f"Checking if {name} directory exists: {path}")
 
             if not path.exists():
                 raise FileNotFoundError(f"{name} directory does not exist: {path}")
 
             for item in path.iterdir():
-                print(f" - {item.name}")
+                logging.info(f" - {item.name}")
 
             validated_paths[name] = path
 
@@ -46,10 +46,10 @@ class DatasetInventory:
         source_dir = Path(source_dir)
         dataset_files = sorted(source_dir.rglob("*" + file_extension))
 
-        print(f"Found {len(dataset_files)} {file_extension.upper()} files in {source_dir}.")
+        logging.info(f"Found {len(dataset_files)} {file_extension.upper()} files in {source_dir}.")
 
         for path in dataset_files[:10]:
-            print(path)
+            logging.info(path)
 
         return dataset_files
     
@@ -61,13 +61,13 @@ class DatasetInventory:
         path = file[0]
         stream = read(path)
         
-        print(f"\nContents of the first MiniSeed File ({path})")
-        print(stream)
+        logging.info(f"\nContents of the first MiniSeed File ({path})")
+        logging.info(stream)
         
         trace = stream[0]
         
-        print(f"\nTrace Information:\n{trace}")
-        print(trace.stats)
+        logging.info(f"\nTrace Information:\n{trace}")
+        logging.info(trace.stats)
         
         return (stream, trace)
     
@@ -91,6 +91,7 @@ class DatasetInventory:
                 "sampling_rate": stats.sampling_rate,
                 "number_of_samples": stats.npts,
                 "duration_time": trace.stats.endtime - trace.stats.starttime,
+                "encoding": getattr(stats.mseed, "encoding", None)
             })
             
         return rows
@@ -112,6 +113,24 @@ class DatasetInventory:
         inventory_df = pd.DataFrame(records)
         
         return inventory_df
+    
+    def inspect_stationXML(self, file_path: Path, extension = ".xml"):
+        """Inspect The StationXML file for extra information about the equipment, networks, channels, response etc..
+
+        Args:
+            file_path (Path): File path
+        
+        Return 
+        """
+
+        # Check if file exists
+        if not file_path:
+            file_path = self.settings.RAW_DIR
+            file_path = Path(file_path)
+        
+        xml_files = sorted(file_path.rglob("*" + extension))
+        
+        inventory = read_inventory(self.settings.RAW_DIR)
 
     def __str__(self):
         return f"Dataset Inventory Directory: (settings={self.settings})"
