@@ -114,7 +114,7 @@ class DatasetInventory:
         
         return inventory_df
     
-    def inspect_stationXML(self, file_path: Path, extension = ".xml"):
+    def inspect_stationXML(self, folder_path: Path, extension = ".xml", all: bool = True | False):
         """Inspect The StationXML file for extra information about the equipment, networks, channels, response etc..
 
         Args:
@@ -124,13 +124,34 @@ class DatasetInventory:
         """
 
         # Check if file exists
-        if not file_path:
-            file_path = self.settings.RAW_DIR
-            file_path = Path(file_path)
+        if not folder_path:
+            folder_path = self.settings.RAW_DIR
+            folder_path = Path(folder_path)
         
-        xml_files = sorted(file_path.rglob("*" + extension))
+        xml_files = sorted(folder_path.rglob("*" + extension))
         
-        inventory = read_inventory(self.settings.RAW_DIR)
+        if not xml_files:
+            logging.warning("Files with .xml extension not found")
+            
+        logging.info(f"Found {len(xml_files)} {extension.upper()} files in {folder_path}.")
+        
+        records_stationXML = []
+        
+        if all: 
+            for item in range(len(xml_files)):
+                inventory = read_inventory(xml_files[item])
+
+                logging.info(f"Inventory Details For StationXML File {str(xml_files[item])}")
+                logging.info(inventory)
+                
+                records_stationXML.append(inventory)
+            
+            return records_stationXML
+        else:
+            inventory = read_inventory(xml_files[0])
+            logging.info(f"Returning Inventory Info StationXML {str(xml_files[0])}")
+        
+            return inventory
 
     def __str__(self):
         return f"Dataset Inventory Directory: (settings={self.settings})"
@@ -161,8 +182,10 @@ if __name__ == "__main__":
     # print(validated_settings.RAW_DATA_DIR)
     # print(validated_settings.RAW_DIR)
     # print(validated_settings.PROJECT_ROOT)
-    dataset_files = inventory.find_all_files(file_extension=".miniseed")
-    single_file = inventory.read_single_file_and_traces(dataset_files)
-    inspect = inventory.inspect_file(file_path=dataset_files[0])
-    print(inspect)
+    # dataset_files = inventory.find_all_files(file_extension=".miniseed")
+    # single_file = inventory.read_single_file_and_traces(dataset_files)
+    # inspect = inventory.inspect_file(file_path=dataset_files[0])
+    # print(inspect)
+    stationxml = inventory.inspect_stationXML(folder_path=validated_settings.RAW_DIR, all=False)
+    print(stationxml)
     
