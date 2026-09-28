@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import pandas as pd
-from obspy import read, read_inventory
+from obspy import Stream, read, read_inventory
 from obspy.geodetics import gps2dist_azimuth
 
 from configs.configs import GeoSeisSettings, logging
@@ -16,9 +16,10 @@ class StationData:
     files: list[Path]
     metadata: pd.DataFrame
     all_metadata: pd.DataFrame
+    settings: GeoSeisSettings
 
     def get_size(self) -> pd.Series:
-        """ Return trace-record counts per station and channel. For Single Station
+        """Return trace-record counts per station and channel. For Single Station
 
         Returns:
             pd.Series: _description_
@@ -26,12 +27,12 @@ class StationData:
         return self.metadata.groupby(["station", "channel"]).size()
 
     def get_aggregate(self) -> pd.DataFrame:
-        """ Summarize file records, time bounds, rates, and samples by channel. For Single Station
+        """Summarize file records, time bounds, rates, and samples by channel. For Single Station
 
         Returns:
             pd.DataFrame: _description_
         """
-        
+
         return self.metadata.groupby(["station", "channel"]).agg(
             files=("file", "count"),
             start=("starttime", "min"),
@@ -41,7 +42,7 @@ class StationData:
         )
 
     def get_coverage(self) -> pd.DataFrame:
-        """ Return start/end bounds and record counts by station and channel. For Single Station
+        """Return start/end bounds and record counts by station and channel. For Single Station
 
 
         Returns:
@@ -56,50 +57,81 @@ class StationData:
             )
             .reset_index()
         )
-    
+
     def get_stations_size(self) -> pd.DataFrame | pd.Series:
-        """ Get All stations Sizes by channels
-        
+        """Get All stations Sizes by channels
+
         Returns:
             pd.DataFrame | pd.Series: _description_
         """
         return self.all_metadata.groupby(["station", "channel"]).size()
 
     def get_stations_aggregate(self) -> pd.DataFrame | pd.Series:
-        """ Get All Stations Aggregate based on channels
+        """Get All Stations Aggregate based on channels
 
         Returns:
             pd.DataFrame | pd.Series: _description_
         """
-        return self.all_metadata.groupby(
-            ["station", "channel"]
-        ).agg(
+        return self.all_metadata.groupby(["station", "channel"]).agg(
             files=("file", "count"),
             start=("starttime", "min"),
             end=("endtime", "max"),
             sampling_rate=("sampling_rate", "unique"),
-            total_sanples=("number_of_samples", "sum")
+            total_sanples=("number_of_samples", "sum"),
         )
-        
+
     def get_stations_coverage(self) -> pd.DataFrame | pd.Series:
-        """ Get Station Coverage by channels
+        """Get Station Coverage by channels
 
         Returns:
             pd.DataFrame | pd.Series: _description_
         """
         coverage = (
-            self.all_metadata
-            .groupby(
-                ["station", "channel"])
+            self.all_metadata.groupby(["station", "channel"])
             .agg(
                 starts=("starttime", "min"),
                 end=("endtime", "max"),
                 files=("file", "count"),
-                )
-            .reset_index()
             )
+            .reset_index()
+        )
         return coverage
 
+    def check_gaps(self):
+        """This fucntions checks the gaps available in the traces records
+
+        Raises:
+            FileNotFoundError: _description_
+            FileNotFoundError: _description_
+
+        Returns:
+            _type_: _description_
+        """
+
+        # Check Gaps
+
+        for station in sorted(self.all_metadata["station"].unique()):
+            for channel in sorted(self.all_metadata["channel"].unique()):
+
+                files = sorted(
+                    self.all_metadata[
+                        (self.all_metadata["station"] == station)
+                        & (self.all_metadata["channel"] == channel)
+                    ]["file"]
+                )
+
+                if not files:
+                    continue
+
+                stream = Stream()
+                
+                for file in files:
+                    stream += read(self.settings.RAW_DATA_DIR / file)
+                
+                logging.info(f"\n{station} {channel}")
+                logging.info(stream)
+                logging.info(f"Gaps: {len(stream.get_gaps())}")
+    
 class DatasetInventory:
     def __init__(self, settings: GeoSeisSettings):
         self.settings = settings
@@ -333,7 +365,8 @@ class DatasetInventory:
                 code=code,
                 files=files,
                 metadata=rows.copy(),
-                all_metadata=metadata
+                all_metadata=metadata,
+                settings = self.settings
             )
             logging.info(f"Rows: {rows}")
 
