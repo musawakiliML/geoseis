@@ -127,36 +127,52 @@ class StationData:
                     continue
 
                 stream = Stream()
-                
+
                 for file in files:
                     stream += read(self.settings.RAW_DATA_DIR / file)
-                
+
                 logging.info(f"\n{station} {channel}")
                 logging.info(stream)
                 logging.info(f"Gaps: {len(stream.get_gaps())}")
-    
-    @dataclass
-    class ChannelData:
-        inventory: Any
-        
-        def get_channel_info(self) -> pd.DataFrame | pd.Series:
-            
-            channels_info = []
-            
-            for network in self.inventory:
+
+
+@dataclass
+class ChannelData:
+    inventory: Any
+
+    def get_info(
+        self,
+        source_inventory: Any | None = None,
+        channel_code: str | None = None,
+    ) -> pd.DataFrame:
+        """Return channel metadata from all inventories or one selected inventory."""
+        channels_info = []
+        inventories = self.inventory if source_inventory is None else source_inventory
+        if not isinstance(inventories, (list, tuple)):
+            inventories = [inventories]
+
+        for inventory in inventories:
+            for network in inventory:
                 for station in network:
                     for channel in station:
+                        if channel_code is not None and channel.code != channel_code:
+                            continue
+
                         logging.info(
+                            "Channel %s: sample_rate=%s latitude=%s longitude=%s "
+                            "elevation=%s depth=%s azimuth=%s dip=%s",
                             channel.code,
-                            "sample_rate =", channel.sample_rate,
-                            "latitude =", channel.latitude,
-                            "longitude =", channel.longitude,
-                            "elevation =", channel.elevation,
-                            "depth =", channel.depth,
-                            "azimuth =", channel.azimuth,
-                            "dip =", channel.dip,
+                            channel.sample_rate,
+                            channel.latitude,
+                            channel.longitude,
+                            channel.elevation,
+                            channel.depth,
+                            channel.azimuth,
+                            channel.dip,
                         )
                         channel_data = {
+                            "network": network.code,
+                            "station": station.code,
                             "channel_code": channel.code,
                             "sample_rate": channel.sample_rate,
                             "latitude": channel.latitude,
@@ -164,18 +180,17 @@ class StationData:
                             "elevation": channel.elevation,
                             "depth": channel.depth,
                             "azimuth": channel.azimuth,
-                            "dip": channel.dip
+                            "dip": channel.dip,
                         }
-                    
-                    channels_info.append(channel_data)
-                    
-            channels_df = pd.DataFrame(channels_info)
-            
-            return channels_df
 
-        def get_channel_response(self):
-            pass
-    
+                        channels_info.append(channel_data)
+
+        return pd.DataFrame(channels_info)
+
+    def get_response(self):
+        pass
+
+
 class DatasetInventory:
     def __init__(self, settings: GeoSeisSettings):
         self.settings = settings
@@ -193,7 +208,7 @@ class DatasetInventory:
         Returns:
             object: Geosettings object
         """
-        
+
         path_map = {
             "PROJECT_ROOT": self.settings.PROJECT_ROOT,
             "RAW_DATA_DIR": self.settings.RAW_DATA_DIR,
@@ -228,8 +243,7 @@ class DatasetInventory:
         Returns:
             list[Path]: List of Path
         """
-        
-        
+
         if source_dir is None:
             source_dir = self.settings.RAW_DATA_DIR
 
@@ -257,7 +271,7 @@ class DatasetInventory:
         Returns:
             tuple: stream, trace
         """
-        
+
         if not file:
             raise FileNotFoundError("File does not exist")
 
@@ -330,7 +344,11 @@ class DatasetInventory:
         return inventory_df
 
     def inspect_stationXML(
-        self, folder_path: Path, extension=".xml", all: bool = True | False, station_name = None
+        self,
+        folder_path: Path,
+        extension=".xml",
+        all: bool = True | False,
+        station_name=None,
     ):
         """Inspect The StationXML file for extra information about the equipment, networks, channels, response etc..
 
@@ -353,14 +371,14 @@ class DatasetInventory:
         logging.info(
             f"Found {len(xml_files)} {extension.upper()} files in {folder_path}."
         )
-        
+
         station_filenames = [xml_file.name for xml_file in xml_files]
         logging.info("StationXML filenames: %s", station_filenames)
 
         records_stationXML = []
 
         if all:
-            
+
             for item in range(len(xml_files)):
                 inventory = read_inventory(xml_files[item])
 
@@ -372,10 +390,12 @@ class DatasetInventory:
                 records_stationXML.append(inventory)
 
             return records_stationXML
-        
+
         elif not all:
             if not station_name:
-                raise ValueError("station_name is required when all=False eg. station_name='LKG01'")
+                raise ValueError(
+                    "station_name is required when all=False eg. station_name='LKG01'"
+                )
 
             matching_files = [
                 xml_file
@@ -395,7 +415,7 @@ class DatasetInventory:
             station_xml_path = matching_files[0]
             inventory = read_inventory(station_xml_path)
             logging.info("Returning StationXML inventory from %s", station_xml_path)
-            
+
             return inventory
 
     def inspect_stations(self, file_name: str):
@@ -455,7 +475,7 @@ class DatasetInventory:
 
         metadata = self.inspect_files_dataframe(all_files)
         stations = {}
-        
+
         # xml_metadata = self.inspect_stationXML()
 
         if metadata.empty:
@@ -475,11 +495,19 @@ class DatasetInventory:
                 files=files,
                 metadata=rows.copy(),
                 all_metadata=metadata,
-                settings = self.settings
+                settings=self.settings,
             )
             logging.info(f"Rows: {rows}")
 
         return stations
+
+    def build_channels(self, folder_path: Path | None = None) -> ChannelData:
+        """Load all StationXML inventories into a channel metadata wrapper."""
+        if folder_path is None:
+            folder_path = self.settings.RAW_DIR
+
+        stations_xml = self.inspect_stationXML(folder_path=Path(folder_path), all=True)
+        return ChannelData(inventory=stations_xml)
 
     def __str__(self):
         return f"Dataset Inventory Directory: (settings={self.settings})"
@@ -496,7 +524,9 @@ if __name__ == "__main__":
     # single_file = inventory.read_single_file_and_traces(dataset_files)
     # inspect = inventory.inspect_file(file_path=dataset_files[0])
     # print(inspect)
-    stationxml = inventory.inspect_stationXML(folder_path=settings.RAW_DIR, all=False, station_name="LKG01")
+    stationxml = inventory.inspect_stationXML(
+        folder_path=settings.RAW_DIR, all=False, station_name="LKG01"
+    )
     print(stationxml.get_contents())
 
     # stations = inventory.inspect_stations(file_name="stat_locations.csv")
