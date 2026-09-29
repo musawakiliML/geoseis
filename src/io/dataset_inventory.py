@@ -288,7 +288,7 @@ class DatasetInventory:
         return inventory_df
 
     def inspect_stationXML(
-        self, folder_path: Path, extension=".xml", all: bool = True | False
+        self, folder_path: Path, extension=".xml", all: bool = True | False, station_name = None
     ):
         """Inspect The StationXML file for extra information about the equipment, networks, channels, response etc..
 
@@ -306,15 +306,19 @@ class DatasetInventory:
         xml_files = sorted(folder_path.rglob("*" + extension))
 
         if not xml_files:
-            logging.warning("Files with .xml extension not found")
+            raise FileNotFoundError(f"No {extension} files found in {folder_path}")
 
         logging.info(
             f"Found {len(xml_files)} {extension.upper()} files in {folder_path}."
         )
+        
+        station_filenames = [xml_file.name for xml_file in xml_files]
+        logging.info("StationXML filenames: %s", station_filenames)
 
         records_stationXML = []
 
         if all:
+            
             for item in range(len(xml_files)):
                 inventory = read_inventory(xml_files[item])
 
@@ -326,10 +330,30 @@ class DatasetInventory:
                 records_stationXML.append(inventory)
 
             return records_stationXML
-        else:
-            inventory = read_inventory(xml_files[0])
-            logging.info(f"Returning Inventory Info StationXML {xml_files[0]!s}")
+        
+        elif not all:
+            if not station_name:
+                raise ValueError("station_name is required when all=False eg. station_name='LKG01'")
 
+            matching_files = [
+                xml_file
+                for xml_file in xml_files
+                if station_name in xml_file.stem.split(".")
+            ]
+            if not matching_files:
+                raise FileNotFoundError(
+                    f"No StationXML file found for station {station_name!r}"
+                )
+            if len(matching_files) > 1:
+                raise ValueError(
+                    f"Multiple StationXML files found for station {station_name!r}: "
+                    f"{matching_files}"
+                )
+
+            station_xml_path = matching_files[0]
+            inventory = read_inventory(station_xml_path)
+            logging.info("Returning StationXML inventory from %s", station_xml_path)
+            
             return inventory
 
     def inspect_stations(self, file_name: str):
@@ -389,6 +413,8 @@ class DatasetInventory:
 
         metadata = self.inspect_files_dataframe(all_files)
         stations = {}
+        
+        # xml_metadata = self.inspect_stationXML()
 
         if metadata.empty:
             return stations
@@ -428,11 +454,11 @@ if __name__ == "__main__":
     # single_file = inventory.read_single_file_and_traces(dataset_files)
     # inspect = inventory.inspect_file(file_path=dataset_files[0])
     # print(inspect)
-    # stationxml = inventory.inspect_stationXML(folder_path=validated_settings.RAW_DIR, all=False)
-    # print(stationxml)
+    stationxml = inventory.inspect_stationXML(folder_path=settings.RAW_DIR, all=False, station_name="LKG01")
+    print(stationxml.get_contents())
 
-    stations = inventory.inspect_stations(file_name="stat_locations.csv")
-    stations_geo = inventory.inspect_station_geometry(locations=stations)
+    # stations = inventory.inspect_stations(file_name="stat_locations.csv")
+    # stations_geo = inventory.inspect_station_geometry(locations=stations)
 
-    all_stations = inventory.build_stations()
-    logging.info(all_stations)
+    # all_stations = inventory.build_stations()
+    # logging.info(all_stations)
