@@ -144,53 +144,62 @@ class ChannelData:
         self,
         source_inventory: Any | None = None,
         channel_code: str | None = None,
-    ) -> pd.DataFrame:
-        """Return channel metadata from all inventories or one selected inventory."""
+        response: bool = None | True
+    ) -> pd.DataFrame | Any:
+        """Return channel metadata from all inventories or one selected inventory.
+
+        Args:
+            source_inventory (Any | None, optional): _description_. Defaults to None.
+            channel_code (str | None, optional): _description_. Defaults to None.
+
+        Returns:
+            pd.DataFrame | None: _description_ or None
+        """
         channels_info = []
         inventories = self.inventory if source_inventory is None else source_inventory
         if not isinstance(inventories, (list, tuple)):
             inventories = [inventories]
-
+        
         for inventory in inventories:
             for network in inventory:
                 for station in network:
                     for channel in station:
                         if channel_code is not None and channel.code != channel_code:
                             continue
+                        if not response:
+                            logging.info(
+                                "Channel %s: sample_rate=%s latitude=%s longitude=%s "
+                                "elevation=%s depth=%s azimuth=%s dip=%s",
+                                channel.code,
+                                channel.sample_rate,
+                                channel.latitude,
+                                channel.longitude,
+                                channel.elevation,
+                                channel.depth,
+                                channel.azimuth,
+                                channel.dip,
+                            )
+                            channel_data = {
+                                "network": network.code,
+                                "station": station.code,
+                                "channel_code": channel.code,
+                                "sample_rate": channel.sample_rate,
+                                "latitude": channel.latitude,
+                                "longitude": channel.longitude,
+                                "elevation": channel.elevation,
+                                "depth": channel.depth,
+                                "azimuth": channel.azimuth,
+                                "dip": channel.dip,
+                            }
 
-                        logging.info(
-                            "Channel %s: sample_rate=%s latitude=%s longitude=%s "
-                            "elevation=%s depth=%s azimuth=%s dip=%s",
-                            channel.code,
-                            channel.sample_rate,
-                            channel.latitude,
-                            channel.longitude,
-                            channel.elevation,
-                            channel.depth,
-                            channel.azimuth,
-                            channel.dip,
-                        )
-                        channel_data = {
-                            "network": network.code,
-                            "station": station.code,
-                            "channel_code": channel.code,
-                            "sample_rate": channel.sample_rate,
-                            "latitude": channel.latitude,
-                            "longitude": channel.longitude,
-                            "elevation": channel.elevation,
-                            "depth": channel.depth,
-                            "azimuth": channel.azimuth,
-                            "dip": channel.dip,
-                        }
-
-                        channels_info.append(channel_data)
-
+                            channels_info.append(channel_data)
+                        else:
+                            logging.info(
+                                "\nCHANNEL:", channel.code,
+                                channel.response
+                            )
+                            return channel.response
         return pd.DataFrame(channels_info)
-
-    def get_response(self):
-        pass
-
-
 class DatasetInventory:
     def __init__(self, settings: GeoSeisSettings):
         self.settings = settings
