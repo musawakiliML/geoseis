@@ -1,6 +1,7 @@
 # Dataset Inventory Class
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 from obspy import Stream, read, read_inventory
@@ -133,6 +134,47 @@ class StationData:
                 logging.info(f"\n{station} {channel}")
                 logging.info(stream)
                 logging.info(f"Gaps: {len(stream.get_gaps())}")
+    
+    @dataclass
+    class ChannelData:
+        inventory: Any
+        
+        def get_channel_info(self) -> pd.DataFrame | pd.Series:
+            
+            channels_info = []
+            
+            for network in self.inventory:
+                for station in network:
+                    for channel in station:
+                        logging.info(
+                            channel.code,
+                            "sample_rate =", channel.sample_rate,
+                            "latitude =", channel.latitude,
+                            "longitude =", channel.longitude,
+                            "elevation =", channel.elevation,
+                            "depth =", channel.depth,
+                            "azimuth =", channel.azimuth,
+                            "dip =", channel.dip,
+                        )
+                        channel_data = {
+                            "channel_code": channel.code,
+                            "sample_rate": channel.sample_rate,
+                            "latitude": channel.latitude,
+                            "longitude": channel.longitude,
+                            "elevation": channel.elevation,
+                            "depth": channel.depth,
+                            "azimuth": channel.azimuth,
+                            "dip": channel.dip
+                        }
+                    
+                    channels_info.append(channel_data)
+                    
+            channels_df = pd.DataFrame(channels_info)
+            
+            return channels_df
+
+        def get_channel_response(self):
+            pass
     
 class DatasetInventory:
     def __init__(self, settings: GeoSeisSettings):
