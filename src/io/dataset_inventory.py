@@ -12,6 +12,11 @@ from configs.configs import GeoSeisSettings, logging
 
 @dataclass
 class StationData:
+    """ Per-station and all-station size, aggregate, coverage, and gap checks.
+
+    Returns:
+        _type_: _description_
+    """
     network: str
     code: str
     files: list[Path]
@@ -129,6 +134,11 @@ class StationData:
 
 @dataclass
 class ChannelData:
+    """ Metadata from all inventories or one selected inventory, channel filtering, and response retrieval.
+
+    Returns:
+        _type_: _description_
+    """
     inventory: Any
 
     def get_info(
@@ -195,6 +205,8 @@ class ChannelData:
 
 
 class DatasetInventory:
+    """ Settings/path checks, file discovery and reading, metadata extraction, StationXML selection, station CSV and geometry, station building, and channel building.
+    """
     def __init__(self, settings: GeoSeisSettings):
         self.settings = settings
         self.data = settings
