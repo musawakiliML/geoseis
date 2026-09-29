@@ -57,5 +57,57 @@ def make_trace(
     trace.stats.mseed = {"encoding": "STEIM2"}
     
     return trace
-    
+
+
+def make_metadata() -> pd.DataFrame:
+    """Create Metadata as pandas dataframes
+
+    Returns:
+        pd.DataFrame: _description_
+    """
+    return pd.DataFrame(
+        [
+            {
+                "file": "STA1/HHZ/one.mseed",
+                "network": "XX",
+                "station": "STA1",
+                "channel": "HHZ",
+                "starttime": pd.Timestamp("2026-01-01T00:00:00Z"),
+                "endtime": pd.Timestamp("2026-01-01T00:00:09.9Z"),
+                "sampling_rate": 10.0,
+                "number_of_samples": 100,
+            },
+            {
+                "file": "STA1/HHZ/two.mseed",
+                "network": "XX",
+                "station": "STA1",
+                "channel": "HHZ",
+                "starttime": pd.Timestamp("2026-01-01T00:00:10Z"),
+                "endtime": pd.Timestamp("2026-01-01T00:00:19.9Z"),
+                "sampling_rate": 10.0,
+                "number_of_samples": 100,
+            },
+            {
+                "file": "STA1/HHN/one.mseed",
+                "network": "XX",
+                "station": "STA1",
+                "channel": "HHN",
+                "starttime": pd.Timestamp("2026-01-01T00:00:00Z"),
+                "endtime": pd.Timestamp("2026-01-01T00:00:09.9Z"),
+                "sampling_rate": 10.0,
+                "number_of_samples": 100,
+            },
+            {
+                "file": "STA2/HHZ/one.mseed",
+                "network": "YY",
+                "station": "STA2",
+                "channel": "HHZ",
+                "starttime": pd.Timestamp("2026-01-02T00:00:00Z"),
+                "endtime": pd.Timestamp("2026-01-02T00:00:09.9Z"),
+                "sampling_rate": 20.0,
+                "number_of_samples": 200,
+            },
+        ]
+    )
+
     
