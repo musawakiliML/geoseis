@@ -303,3 +303,17 @@ class TestDatasetInventory:
         assert rows[0]["channel"] == "HHZ"
         assert rows[0]["number_of_samples"] == 100
         assert rows[0]["encoding"] == "STEIM2"
+
+    def test_inspect_files_dataframe_combines_records(self, tmp_path, monkeypatch):
+        settings = make_settings(tmp_path)
+        inventory = DatasetInventory(settings)
+        monkeypatch.setattr(
+            inventory,
+            "inspect_file",
+            lambda path: [{"file": Path(path).name, "station": "STA1"}],
+        )
+
+        result = inventory.inspect_files_dataframe([Path("a.mseed"), Path("b.mseed")])
+
+        assert list(result["file"]) == ["a.mseed", "b.mseed"]
+        assert len(result) == 2
