@@ -271,3 +271,15 @@ class TestDatasetInventory:
         (nested / "notes.txt").touch()
 
         assert DatasetInventory(settings).find_all_files() == [expected]
+        
+    def test_read_single_file_and_traces_returns_first_trace(self, tmp_path, monkeypatch):
+        settings = make_settings(tmp_path)
+        stream = Stream([make_trace()])
+        monkeypatch.setattr(inventory_module, "read", lambda path: stream)
+
+        result_stream, trace = DatasetInventory(settings).read_single_file_and_traces(
+            [settings.RAW_DATA_DIR / "sample.mseed"]
+        )
+
+        assert result_stream is stream
+        assert trace is stream[0]
