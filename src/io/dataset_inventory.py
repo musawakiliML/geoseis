@@ -12,6 +12,11 @@ from configs.configs import GeoSeisSettings, logging
 
 @dataclass
 class StationData:
+    """ Per-station and all-station size, aggregate, coverage, and gap checks.
+
+    Returns:
+        _type_: _description_
+    """
     network: str
     code: str
     files: list[Path]
@@ -78,7 +83,7 @@ class StationData:
             start=("starttime", "min"),
             end=("endtime", "max"),
             sampling_rate=("sampling_rate", "unique"),
-            total_sanples=("number_of_samples", "sum"),
+            total_samples=("number_of_samples", "sum"),
         )
 
     def get_stations_coverage(self) -> pd.DataFrame | pd.Series:
@@ -113,38 +118,34 @@ class StationData:
 
         # Check Gaps
 
-        for station in sorted(self.all_metadata["station"].unique()):
-            for channel in sorted(self.all_metadata["channel"].unique()):
+        for channel in sorted(self.metadata["channel"].unique()):
+            files = sorted(
+                self.metadata.loc[self.metadata["channel"] == channel, "file"].unique()
+            )
+            stream = Stream()
 
-                files = sorted(
-                    self.all_metadata[
-                        (self.all_metadata["station"] == station)
-                        & (self.all_metadata["channel"] == channel)
-                    ]["file"]
-                )
+            for file in files:
+                stream += read(self.settings.RAW_DATA_DIR / file)
 
-                if not files:
-                    continue
-
-                stream = Stream()
-
-                for file in files:
-                    stream += read(self.settings.RAW_DATA_DIR / file)
-
-                logging.info(f"\n{station} {channel}")
-                logging.info(stream)
-                logging.info(f"Gaps: {len(stream.get_gaps())}")
+            logging.info("\n%s.%s %s", self.network, self.code, channel)
+            logging.info(stream)
+            logging.info("Gaps: %s", len(stream.get_gaps()))
 
 
 @dataclass
 class ChannelData:
+    """ Metadata from all inventories or one selected inventory, channel filtering, and response retrieval.
+
+    Returns:
+        _type_: _description_
+    """
     inventory: Any
 
     def get_info(
         self,
         source_inventory: Any | None = None,
         channel_code: str | None = None,
-        response: bool = None | True
+        response: bool = False,
     ) -> pd.DataFrame | Any:
         """Return channel metadata from all inventories or one selected inventory.
 
@@ -159,7 +160,7 @@ class ChannelData:
         inventories = self.inventory if source_inventory is None else source_inventory
         if not isinstance(inventories, (list, tuple)):
             inventories = [inventories]
-        
+
         for inventory in inventories:
             for network in inventory:
                 for station in network:
@@ -195,12 +196,17 @@ class ChannelData:
                             channels_info.append(channel_data)
                         else:
                             logging.info(
-                                "\nCHANNEL:", channel.code,
-                                channel.response
+                                "Channel %s response: %s",
+                                channel.code,
+                                channel.response,
                             )
                             return channel.response
         return pd.DataFrame(channels_info)
+
+
 class DatasetInventory:
+    """ Settings/path checks, file discovery and reading, metadata extraction, StationXML selection, station CSV and geometry, station building, and channel building.
+    """
     def __init__(self, settings: GeoSeisSettings):
         self.settings = settings
         self.data = settings
@@ -543,3 +549,14 @@ if __name__ == "__main__":
 
     # all_stations = inventory.build_stations()
     # logging.info(all_stations)
+
+    # channels = inventory.build_channels()
+
+    # station_xml = inventory.inspect_stationXML(
+    #     folder_path=settings.RAW_DIR,
+    #     all=False,
+    #     station_name="LKG01",
+    # )
+
+    # station_channels = channels.get_info(source_inventory=station_xml)
+    # hhz_info = channels.get_info(source_inventory=station_xml, channel_code="HHZ")
