@@ -418,3 +418,18 @@ class TestDatasetInventory:
         )
 
         assert inventory.build_stations([]) == {}
+    
+    def test_build_channels_wraps_all_inventories(self, tmp_path, monkeypatch):
+        inventory = DatasetInventory(make_settings(tmp_path))
+        xml_inventories = [make_inventory("STA1"), make_inventory("STA2")]
+        inspect_xml = Mock(return_value=xml_inventories)
+        monkeypatch.setattr(inventory, "inspect_stationXML", inspect_xml)
+
+        channels = inventory.build_channels()
+
+        assert isinstance(channels, ChannelData)
+        assert channels.inventory is xml_inventories
+        inspect_xml.assert_called_once_with(
+            folder_path=inventory.settings.RAW_DIR,
+            all=True,
+        )
