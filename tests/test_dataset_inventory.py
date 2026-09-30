@@ -283,3 +283,7 @@ class TestDatasetInventory:
 
         assert result_stream is stream
         assert trace is stream[0]
+    
+    def test_read_single_file_and_traces_rejects_empty_input(self, tmp_path):
+        with pytest.raises(FileNotFoundError):
+            DatasetInventory(make_settings(tmp_path)).read_single_file_and_traces([])
