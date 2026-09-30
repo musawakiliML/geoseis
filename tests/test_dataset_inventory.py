@@ -390,3 +390,21 @@ class TestDatasetInventory:
         DatasetInventory(make_settings(tmp_path)).inspect_station_geometry(locations)
 
         assert len(calls) == 3
+    
+    def test_build_stations_groups_files_and_metadata(self, tmp_path, monkeypatch):
+        settings = make_settings(tmp_path)
+        metadata = make_metadata()
+        inventory = DatasetInventory(settings)
+        monkeypatch.setattr(
+            inventory, "inspect_files_dataframe", lambda all_files: metadata
+        )
+        files = [Path("first.mseed")]
+
+        stations = inventory.build_stations(files)
+
+        assert set(stations) == {("XX", "STA1"), ("YY", "STA2")}
+        station = stations[("XX", "STA1")]
+        assert len(station.metadata) == 3
+        assert len(station.all_metadata) == 4
+        assert len(station.files) == 3
+        assert all(path.is_absolute() for path in station.files)
