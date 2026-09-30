@@ -360,3 +360,14 @@ class TestDatasetInventory:
         settings = make_settings(tmp_path)
         with pytest.raises(FileNotFoundError, match="No .xml files"):
             DatasetInventory(settings).inspect_stationXML(settings.RAW_DIR)
+    
+    def test_inspect_stations_reads_csv(self, tmp_path):
+            settings = make_settings(tmp_path)
+            csv_path = settings.RAW_DIR / "locations.csv"
+            pd.DataFrame(
+                [{"Station": "STA1", "Latitude": -38.0, "Longitude": 176.0}]
+            ).to_csv(csv_path, index=False)
+    
+            result = DatasetInventory(settings).inspect_stations("locations.csv")
+    
+            assert result.loc[0, "Station"] == "STA1"
