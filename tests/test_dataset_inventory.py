@@ -167,5 +167,20 @@ def make_inventory(station_code: str = "STA1") -> Inventory:
     )
     
     return Inventory(networks=[Network(code="XX", stations=[station])], source="test")
-    
-    
+
+
+class TestStationData:
+    def test_station_summaries_group_by_channel(self, tmp_path):
+        metadata = make_metadata()
+        station = make_station(settings=make_settings(tmp_path), metadata=metadata)
+        
+        sizes = station.get_size()
+        aggregate = station.get_aggregate()
+        coverage = station.get_coverage()
+        
+        assert sizes.loc[("STA1", "HHZ")] == 2
+        assert sizes.loc[("STA1", "HHN")] == 1
+        assert aggregate.loc[("STA1", "HHZ"), "total_samples"] == 200
+        assert aggregate.loc[("STA1", "HHZ"), "files"] == 2
+        assert len(coverage) == 2
+        assert set(coverage["station"]) == {"STA1"}
