@@ -192,3 +192,50 @@ class TestStationData:
         aggregate = station.get_stations_aggregate()
         assert aggregate.loc[("STA2", "HHZ"), "total_samples"] == 200
         assert set(station.get_stations_coverage()["station"]) == {"STA1", "STA2"}
+    
+    def test_check_gaps_reads_only_this_station_files(self, tmp_path, monkeypatch):
+        settings = make_settings(tmp_path)
+        station = make_station(settings, make_metadata())
+        read_paths = []
+
+        def read_file(path):
+            read_paths.append(Path(path))
+            return Stream([make_trace(station="STA1")])
+
+        monkeypatch.setattr(inventory_module, "read", read_file)
+        station.check_gaps()
+
+        assert len(read_paths) == 3
+        assert all(path.is_relative_to(settings.RAW_DATA_DIR) for path in read_paths)
+            
+class TestChannelData:
+    def test_get_info_reads_all_inventories(self):
+        channels = ChannelData(inventory=[make_inventory("STA1"), make_inventory("STA2")])
+
+        info = channels.get_info()
+
+        assert list(info["station"]) == ["STA1", "STA2"]
+        assert set(info["channel_code"]) == {"HHZ"}
+
+    def test_get_info_accepts_single_inventory_and_channel_filter(self):
+        channels = ChannelData(inventory=[])
+
+        info = channels.get_info(
+            source_inventory=make_inventory("STA1"), channel_code="HHZ"
+        )
+
+        assert len(info) == 1
+        assert info.iloc[0]["station"] == "STA1"
+        assert info.iloc[0]["sample_rate"] == 100.0
+        
+    def test_get_info_returns_requested_response(self):
+        inventory = make_inventory()
+        expected_response = inventory[0][0][0].response
+
+        response = ChannelData(inventory=[]).get_info(
+            source_inventory=inventory,
+            channel_code="HHZ",
+            response=True,
+        )
+
+        assert response is expected_response
