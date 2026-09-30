@@ -248,3 +248,9 @@ class TestDatasetInventory:
 
         assert inventory.RAW_DATA_DIR == settings.RAW_DATA_DIR
         assert "settings=" in str(inventory)
+    
+    def test_get_dir_and_check_returns_settings(self, tmp_path):
+        settings = make_settings(tmp_path)
+        inventory = DatasetInventory(settings)
+
+        assert inventory.get_dir_and_check() is settings
