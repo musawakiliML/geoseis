@@ -261,3 +261,13 @@ class TestDatasetInventory:
 
         with pytest.raises(FileNotFoundError, match="RAW_DIR"):
             DatasetInventory(settings).get_dir_and_check()
+    
+    def test_find_all_files_recursively_and_filter_extension(self, tmp_path):
+        settings = make_settings(tmp_path)
+        nested = settings.RAW_DATA_DIR / "STA1" / "HHZ"
+        nested.mkdir(parents=True)
+        expected = nested / "one.miniseed"
+        expected.touch()
+        (nested / "notes.txt").touch()
+
+        assert DatasetInventory(settings).find_all_files() == [expected]
