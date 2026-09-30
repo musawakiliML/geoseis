@@ -227,3 +227,15 @@ class TestChannelData:
         assert len(info) == 1
         assert info.iloc[0]["station"] == "STA1"
         assert info.iloc[0]["sample_rate"] == 100.0
+        
+    def test_get_info_returns_requested_response(self):
+        inventory = make_inventory()
+        expected_response = inventory[0][0][0].response
+
+        response = ChannelData(inventory=[]).get_info(
+            source_inventory=inventory,
+            channel_code="HHZ",
+            response=True,
+        )
+
+        assert response is expected_response
