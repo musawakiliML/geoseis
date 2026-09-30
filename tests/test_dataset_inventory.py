@@ -239,3 +239,12 @@ class TestChannelData:
         )
 
         assert response is expected_response
+
+
+class TestDatasetInventory:
+    def test_init_attribute_proxy_and_string(self, tmp_path):
+        settings = make_settings(tmp_path)
+        inventory = DatasetInventory(settings)
+
+        assert inventory.RAW_DATA_DIR == settings.RAW_DATA_DIR
+        assert "settings=" in str(inventory)
