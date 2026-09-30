@@ -371,3 +371,22 @@ class TestDatasetInventory:
             result = DatasetInventory(settings).inspect_stations("locations.csv")
     
             assert result.loc[0, "Station"] == "STA1"
+    
+    def test_inspect_station_geometry_calculates_each_pair(self, tmp_path, monkeypatch):
+        calls = []
+        monkeypatch.setattr(
+            inventory_module,
+            "gps2dist_azimuth",
+            lambda *coordinates: (calls.append(coordinates) or (1.0, 2.0, 3.0)),
+        )
+        locations = pd.DataFrame(
+            [
+                {"Station": "STA1", "Latitude": 1.0, "Longitude": 2.0},
+                {"Station": "STA2", "Latitude": 3.0, "Longitude": 4.0},
+                {"Station": "STA3", "Latitude": 5.0, "Longitude": 6.0},
+            ]
+        )
+
+        DatasetInventory(make_settings(tmp_path)).inspect_station_geometry(locations)
+
+        assert len(calls) == 3
