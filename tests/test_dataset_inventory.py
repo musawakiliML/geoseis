@@ -194,16 +194,25 @@ class TestStationData:
         assert set(station.get_stations_coverage()["station"]) == {"STA1", "STA2"}
     
     def test_check_gaps_reads_only_this_station_files(self, tmp_path, monkeypatch):
-            settings = make_settings(tmp_path)
-            station = make_station(settings, make_metadata())
-            read_paths = []
-    
-            def read_file(path):
-                read_paths.append(Path(path))
-                return Stream([make_trace(station="STA1")])
-    
-            monkeypatch.setattr(inventory_module, "read", read_file)
-            station.check_gaps()
-    
-            assert len(read_paths) == 3
-            assert all(path.is_relative_to(settings.RAW_DATA_DIR) for path in read_paths)
+        settings = make_settings(tmp_path)
+        station = make_station(settings, make_metadata())
+        read_paths = []
+
+        def read_file(path):
+            read_paths.append(Path(path))
+            return Stream([make_trace(station="STA1")])
+
+        monkeypatch.setattr(inventory_module, "read", read_file)
+        station.check_gaps()
+
+        assert len(read_paths) == 3
+        assert all(path.is_relative_to(settings.RAW_DATA_DIR) for path in read_paths)
+            
+class TestChannelData:
+    def test_get_info_reads_all_inventories(self):
+        channels = ChannelData(inventory=[make_inventory("STA1"), make_inventory("STA2")])
+
+        info = channels.get_info()
+
+        assert list(info["station"]) == ["STA1", "STA2"]
+        assert set(info["channel_code"]) == {"HHZ"}
