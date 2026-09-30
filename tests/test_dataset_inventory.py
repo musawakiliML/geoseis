@@ -5,11 +5,11 @@ import numpy as np
 import pandas as pd
 import pytest
 from obspy import Stream, Trace, UTCDateTime
-from obspy.core.inventory import Inventory, Response, Channel, Station, Network
+from obspy.core.inventory import Channel, Inventory, Network, Response, Station
 
-from configs.configs import GeoSeisSettings
-from src.io import dataset_inventory as inventory_module
-from src.io.dataset_inventory import DatasetInventory, StationData, ChannelData
+from Geoseis.configs.configs import GeoSeisSettings
+from Geoseis.io import dataset_inventory as inventory_module
+from Geoseis.io.dataset_inventory import ChannelData, DatasetInventory, StationData
 
 
 def make_settings(tmp_path: Path) -> GeoSeisSettings:
@@ -21,7 +21,7 @@ def make_settings(tmp_path: Path) -> GeoSeisSettings:
     Returns:
         GeoSeisSettings: Settings Object
     """
-    
+
     raw_dir = tmp_path / "raw"
     raw_dir.mkdir(exist_ok=True)
     return GeoSeisSettings(
@@ -35,9 +35,9 @@ def make_trace(
     station: str = "STA1",
     channel: str = "HHZ",
     network: str = "XX",
-    starttime: str = "2026-01-01T00:00:00"
+    starttime: str = "2026-01-01T00:00:00",
 ) -> Trace:
-    """ Create a temporary fake trace object
+    """Create a temporary fake trace object
 
     Args:
         station (str, optional): _description_. Defaults to "STA1".
@@ -55,7 +55,7 @@ def make_trace(
     trace.stats.starttime = UTCDateTime(starttime)
     trace.stats.sampling_rate = 20.0
     trace.stats.mseed = {"encoding": "STEIM2"}
-    
+
     return trace
 
 
@@ -110,8 +110,9 @@ def make_metadata() -> pd.DataFrame:
         ]
     )
 
+
 def make_station(settings: GeoSeisSettings, metadata: pd.DataFrame) -> StationData:
-    """ Create Station Data
+    """Create Station Data
 
     Args:
         settings (GeoSeisSettings): _description_
@@ -120,10 +121,10 @@ def make_station(settings: GeoSeisSettings, metadata: pd.DataFrame) -> StationDa
     Returns:
         StationData: StationData Class
     """
-    
+
     station_rows = metadata.loc[metadata["station"] == "STA1"].copy()
     files = [settings.RAW_DATA_DIR / row for row in station_rows["file"]]
-    
+
     return StationData(
         network="XX",
         code="STA1",
@@ -133,8 +134,9 @@ def make_station(settings: GeoSeisSettings, metadata: pd.DataFrame) -> StationDa
         settings=settings,
     )
 
+
 def make_inventory(station_code: str = "STA1") -> Inventory:
-    """ Create an Inventory object for test
+    """Create an Inventory object for test
 
     Args:
         station_code (str, optional): _description_. Defaults to "STA1".
@@ -142,9 +144,9 @@ def make_inventory(station_code: str = "STA1") -> Inventory:
     Returns:
         Inventory: Inventory object
     """
-    
+
     response = Response()
-    
+
     channel = Channel(
         code="HHZ",
         location_code="",
@@ -157,7 +159,7 @@ def make_inventory(station_code: str = "STA1") -> Inventory:
         sample_rate=100.0,
         response=response,
     )
-    
+
     station = Station(
         code=station_code,
         latitude=-38.0,
@@ -165,7 +167,7 @@ def make_inventory(station_code: str = "STA1") -> Inventory:
         elevation=100.0,
         channels=[channel],
     )
-    
+
     return Inventory(networks=[Network(code="XX", stations=[station])], source="test")
 
 
@@ -173,26 +175,26 @@ class TestStationData:
     def test_station_summaries_group_by_channel(self, tmp_path):
         metadata = make_metadata()
         station = make_station(settings=make_settings(tmp_path), metadata=metadata)
-        
+
         sizes = station.get_size()
         aggregate = station.get_aggregate()
         coverage = station.get_coverage()
-        
+
         assert sizes.loc[("STA1", "HHZ")] == 2
         assert sizes.loc[("STA1", "HHN")] == 1
         assert aggregate.loc[("STA1", "HHZ"), "total_samples"] == 200
         assert aggregate.loc[("STA1", "HHZ"), "files"] == 2
         assert len(coverage) == 2
         assert set(coverage["station"]) == {"STA1"}
-    
+
     def test_all_station_summaries_include_all_metadata(self, tmp_path):
         station = make_station(make_settings(tmp_path), make_metadata())
-        
+
         assert station.get_stations_size().loc[("STA2", "HHZ")] == 1
         aggregate = station.get_stations_aggregate()
         assert aggregate.loc[("STA2", "HHZ"), "total_samples"] == 200
         assert set(station.get_stations_coverage()["station"]) == {"STA1", "STA2"}
-    
+
     def test_check_gaps_reads_only_this_station_files(self, tmp_path, monkeypatch):
         settings = make_settings(tmp_path)
         station = make_station(settings, make_metadata())
@@ -207,10 +209,13 @@ class TestStationData:
 
         assert len(read_paths) == 3
         assert all(path.is_relative_to(settings.RAW_DATA_DIR) for path in read_paths)
-            
+
+
 class TestChannelData:
     def test_get_info_reads_all_inventories(self):
-        channels = ChannelData(inventory=[make_inventory("STA1"), make_inventory("STA2")])
+        channels = ChannelData(
+            inventory=[make_inventory("STA1"), make_inventory("STA2")]
+        )
 
         info = channels.get_info()
 
@@ -227,7 +232,7 @@ class TestChannelData:
         assert len(info) == 1
         assert info.iloc[0]["station"] == "STA1"
         assert info.iloc[0]["sample_rate"] == 100.0
-        
+
     def test_get_info_returns_requested_response(self):
         inventory = make_inventory()
         expected_response = inventory[0][0][0].response
@@ -248,20 +253,20 @@ class TestDatasetInventory:
 
         assert inventory.RAW_DATA_DIR == settings.RAW_DATA_DIR
         assert "settings=" in str(inventory)
-    
+
     def test_get_dir_and_check_returns_settings(self, tmp_path):
         settings = make_settings(tmp_path)
         inventory = DatasetInventory(settings)
 
         assert inventory.get_dir_and_check() is settings
-    
+
     def test_get_dir_and_check_raises_for_missing_path(self, tmp_path):
         settings = make_settings(tmp_path)
         settings.RAW_DIR = tmp_path / "missing"
 
         with pytest.raises(FileNotFoundError, match="RAW_DIR"):
             DatasetInventory(settings).get_dir_and_check()
-    
+
     def test_find_all_files_recursively_and_filter_extension(self, tmp_path):
         settings = make_settings(tmp_path)
         nested = settings.RAW_DATA_DIR / "STA1" / "HHZ"
@@ -271,8 +276,10 @@ class TestDatasetInventory:
         (nested / "notes.txt").touch()
 
         assert DatasetInventory(settings).find_all_files() == [expected]
-        
-    def test_read_single_file_and_traces_returns_first_trace(self, tmp_path, monkeypatch):
+
+    def test_read_single_file_and_traces_returns_first_trace(
+        self, tmp_path, monkeypatch
+    ):
         settings = make_settings(tmp_path)
         stream = Stream([make_trace()])
         monkeypatch.setattr(inventory_module, "read", lambda path: stream)
@@ -283,11 +290,11 @@ class TestDatasetInventory:
 
         assert result_stream is stream
         assert trace is stream[0]
-    
+
     def test_read_single_file_and_traces_rejects_empty_input(self, tmp_path):
         with pytest.raises(FileNotFoundError):
             DatasetInventory(make_settings(tmp_path)).read_single_file_and_traces([])
-    
+
     def test_inspect_file_extracts_trace_metadata(self, tmp_path, monkeypatch):
         settings = make_settings(tmp_path)
         file_path = settings.RAW_DATA_DIR / "STA1" / "one.mseed"
@@ -317,7 +324,7 @@ class TestDatasetInventory:
 
         assert list(result["file"]) == ["a.mseed", "b.mseed"]
         assert len(result) == 2
-    
+
     def test_inspect_station_xml_all_and_single_station(self, tmp_path, monkeypatch):
         settings = make_settings(tmp_path)
         xml_dir = settings.RAW_DIR / "xml"
@@ -326,9 +333,14 @@ class TestDatasetInventory:
         second = xml_dir / "XX.STA2.xml"
         first.touch()
         second.touch()
-        inventory_by_path = {first: make_inventory("STA1"), second: make_inventory("STA2")}
+        inventory_by_path = {
+            first: make_inventory("STA1"),
+            second: make_inventory("STA2"),
+        }
         monkeypatch.setattr(
-            inventory_module, "read_inventory", lambda path: inventory_by_path[Path(path)]
+            inventory_module,
+            "read_inventory",
+            lambda path: inventory_by_path[Path(path)],
         )
         dataset = DatasetInventory(settings)
 
@@ -339,14 +351,18 @@ class TestDatasetInventory:
 
         assert all_inventories == [inventory_by_path[first], inventory_by_path[second]]
         assert one_inventory is inventory_by_path[second]
-    
-    def test_inspect_station_xml_missing_or_ambiguous_station(self, tmp_path, monkeypatch):
+
+    def test_inspect_station_xml_missing_or_ambiguous_station(
+        self, tmp_path, monkeypatch
+    ):
         settings = make_settings(tmp_path)
         xml_dir = settings.RAW_DIR / "xml"
         xml_dir.mkdir()
         (xml_dir / "XX.STA1.xml").touch()
         (xml_dir / "YY.STA1.xml").touch()
-        monkeypatch.setattr(inventory_module, "read_inventory", lambda path: make_inventory())
+        monkeypatch.setattr(
+            inventory_module, "read_inventory", lambda path: make_inventory()
+        )
         dataset = DatasetInventory(settings)
 
         with pytest.raises(FileNotFoundError, match="MISSING"):
@@ -355,23 +371,23 @@ class TestDatasetInventory:
             dataset.inspect_stationXML(xml_dir, all=False, station_name="STA1")
         with pytest.raises(ValueError, match="station_name"):
             dataset.inspect_stationXML(xml_dir, all=False)
-    
+
     def test_inspect_station_xml_rejects_empty_folder(self, tmp_path):
         settings = make_settings(tmp_path)
         with pytest.raises(FileNotFoundError, match="No .xml files"):
             DatasetInventory(settings).inspect_stationXML(settings.RAW_DIR)
-    
+
     def test_inspect_stations_reads_csv(self, tmp_path):
-            settings = make_settings(tmp_path)
-            csv_path = settings.RAW_DIR / "locations.csv"
-            pd.DataFrame(
-                [{"Station": "STA1", "Latitude": -38.0, "Longitude": 176.0}]
-            ).to_csv(csv_path, index=False)
-    
-            result = DatasetInventory(settings).inspect_stations("locations.csv")
-    
-            assert result.loc[0, "Station"] == "STA1"
-    
+        settings = make_settings(tmp_path)
+        csv_path = settings.RAW_DIR / "locations.csv"
+        pd.DataFrame(
+            [{"Station": "STA1", "Latitude": -38.0, "Longitude": 176.0}]
+        ).to_csv(csv_path, index=False)
+
+        result = DatasetInventory(settings).inspect_stations("locations.csv")
+
+        assert result.loc[0, "Station"] == "STA1"
+
     def test_inspect_station_geometry_calculates_each_pair(self, tmp_path, monkeypatch):
         calls = []
         monkeypatch.setattr(
@@ -390,7 +406,7 @@ class TestDatasetInventory:
         DatasetInventory(make_settings(tmp_path)).inspect_station_geometry(locations)
 
         assert len(calls) == 3
-    
+
     def test_build_stations_groups_files_and_metadata(self, tmp_path, monkeypatch):
         settings = make_settings(tmp_path)
         metadata = make_metadata()
@@ -408,8 +424,10 @@ class TestDatasetInventory:
         assert len(station.all_metadata) == 4
         assert len(station.files) == 3
         assert all(path.is_absolute() for path in station.files)
-    
-    def test_build_stations_returns_empty_mapping_for_no_records(self, tmp_path, monkeypatch):
+
+    def test_build_stations_returns_empty_mapping_for_no_records(
+        self, tmp_path, monkeypatch
+    ):
         inventory = DatasetInventory(make_settings(tmp_path))
         monkeypatch.setattr(
             inventory,
@@ -418,7 +436,7 @@ class TestDatasetInventory:
         )
 
         assert inventory.build_stations([]) == {}
-    
+
     def test_build_channels_wraps_all_inventories(self, tmp_path, monkeypatch):
         inventory = DatasetInventory(make_settings(tmp_path))
         xml_inventories = [make_inventory("STA1"), make_inventory("STA2")]
