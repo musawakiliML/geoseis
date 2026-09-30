@@ -216,3 +216,14 @@ class TestChannelData:
 
         assert list(info["station"]) == ["STA1", "STA2"]
         assert set(info["channel_code"]) == {"HHZ"}
+
+    def test_get_info_accepts_single_inventory_and_channel_filter(self):
+        channels = ChannelData(inventory=[])
+
+        info = channels.get_info(
+            source_inventory=make_inventory("STA1"), channel_code="HHZ"
+        )
+
+        assert len(info) == 1
+        assert info.iloc[0]["station"] == "STA1"
+        assert info.iloc[0]["sample_rate"] == 100.0
