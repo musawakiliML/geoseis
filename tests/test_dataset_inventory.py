@@ -408,3 +408,13 @@ class TestDatasetInventory:
         assert len(station.all_metadata) == 4
         assert len(station.files) == 3
         assert all(path.is_absolute() for path in station.files)
+    
+    def test_build_stations_returns_empty_mapping_for_no_records(self, tmp_path, monkeypatch):
+        inventory = DatasetInventory(make_settings(tmp_path))
+        monkeypatch.setattr(
+            inventory,
+            "inspect_files_dataframe",
+            lambda all_files: pd.DataFrame(),
+        )
+
+        assert inventory.build_stations([]) == {}
