@@ -254,3 +254,10 @@ class TestDatasetInventory:
         inventory = DatasetInventory(settings)
 
         assert inventory.get_dir_and_check() is settings
+    
+    def test_get_dir_and_check_raises_for_missing_path(self, tmp_path):
+        settings = make_settings(tmp_path)
+        settings.RAW_DIR = tmp_path / "missing"
+
+        with pytest.raises(FileNotFoundError, match="RAW_DIR"):
+            DatasetInventory(settings).get_dir_and_check()
