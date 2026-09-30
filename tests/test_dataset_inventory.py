@@ -118,7 +118,7 @@ def make_station(settings: GeoSeisSettings, metadata: pd.DataFrame) -> StationDa
         metadata (pd.DataFrame): _description_
 
     Returns:
-        StationData: _description_
+        StationData: StationData Class
     """
     
     station_rows = metadata.loc[metadata["station"] == "STA1"].copy()
@@ -132,3 +132,40 @@ def make_station(settings: GeoSeisSettings, metadata: pd.DataFrame) -> StationDa
         all_metadata=metadata,
         settings=settings,
     )
+
+def make_inventory(station_code: str = "STA1") -> Inventory:
+    """ Create an Inventory object for test
+
+    Args:
+        station_code (str, optional): _description_. Defaults to "STA1".
+
+    Returns:
+        Inventory: Inventory object
+    """
+    
+    response = Response()
+    
+    channel = Channel(
+        code="HHZ",
+        location_code="",
+        latitude=-38.0,
+        longitude=176.0,
+        elevation=100.0,
+        depth=0.0,
+        azimuth=0.0,
+        dip=-90.0,
+        sample_rate=100.0,
+        response=response,
+    )
+    
+    station = Station(
+        code=station_code,
+        latitude=-38.0,
+        longitude=176.0,
+        elevation=100.0,
+        channels=[channel],
+    )
+    
+    return Inventory(networks=[Network(code="XX", stations=[station])], source="test")
+    
+    
