@@ -110,4 +110,25 @@ def make_metadata() -> pd.DataFrame:
         ]
     )
 
+def make_station(settings: GeoSeisSettings, metadata: pd.DataFrame) -> StationData:
+    """ Create Station Data
+
+    Args:
+        settings (GeoSeisSettings): _description_
+        metadata (pd.DataFrame): _description_
+
+    Returns:
+        StationData: _description_
+    """
     
+    station_rows = metadata.loc[metadata["station"] == "STA1"].copy()
+    files = [settings.RAW_DATA_DIR / row for row in station_rows["file"]]
+    
+    return StationData(
+        network="XX",
+        code="STA1",
+        files=files,
+        metadata=station_rows,
+        all_metadata=metadata,
+        settings=settings,
+    )
