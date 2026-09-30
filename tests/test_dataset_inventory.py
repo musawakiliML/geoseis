@@ -184,3 +184,11 @@ class TestStationData:
         assert aggregate.loc[("STA1", "HHZ"), "files"] == 2
         assert len(coverage) == 2
         assert set(coverage["station"]) == {"STA1"}
+    
+    def test_all_station_summaries_include_all_metadata(self, tmp_path):
+        station = make_station(make_settings(tmp_path), make_metadata())
+        
+        assert station.get_stations_size().loc[("STA2", "HHZ")] == 1
+        aggregate = station.get_stations_aggregate()
+        assert aggregate.loc[("STA2", "HHZ"), "total_samples"] == 200
+        assert set(station.get_stations_coverage()["station"]) == {"STA1", "STA2"}
