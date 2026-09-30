@@ -339,3 +339,19 @@ class TestDatasetInventory:
 
         assert all_inventories == [inventory_by_path[first], inventory_by_path[second]]
         assert one_inventory is inventory_by_path[second]
+    
+    def test_inspect_station_xml_missing_or_ambiguous_station(self, tmp_path, monkeypatch):
+        settings = make_settings(tmp_path)
+        xml_dir = settings.RAW_DIR / "xml"
+        xml_dir.mkdir()
+        (xml_dir / "XX.STA1.xml").touch()
+        (xml_dir / "YY.STA1.xml").touch()
+        monkeypatch.setattr(inventory_module, "read_inventory", lambda path: make_inventory())
+        dataset = DatasetInventory(settings)
+
+        with pytest.raises(FileNotFoundError, match="MISSING"):
+            dataset.inspect_stationXML(xml_dir, all=False, station_name="MISSING")
+        with pytest.raises(ValueError, match="Multiple"):
+            dataset.inspect_stationXML(xml_dir, all=False, station_name="STA1")
+        with pytest.raises(ValueError, match="station_name"):
+            dataset.inspect_stationXML(xml_dir, all=False)
