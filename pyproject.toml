@@ -5,6 +5,7 @@ description = "Python package for event discovery and characterization in geothe
 authors = ["Musa Adamu Wakili <musawakiliml@hotmail.com>"]
 license = "MIT"
 readme = "README.md"
+packages = [{ include = "geoseis", from = "src"}]
 
 [tool.poetry.dependencies]
 python = "^3.11"

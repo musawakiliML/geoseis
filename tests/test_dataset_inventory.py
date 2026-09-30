@@ -7,9 +7,9 @@ import pytest
 from obspy import Stream, Trace, UTCDateTime
 from obspy.core.inventory import Channel, Inventory, Network, Response, Station
 
-from Geoseis.configs.configs import GeoSeisSettings
-from Geoseis.io import dataset_inventory as inventory_module
-from Geoseis.io.dataset_inventory import ChannelData, DatasetInventory, StationData
+from geoseis.configs.configs import GeoSeisSettings
+from geoseis.io import dataset_inventory as inventory_module
+from geoseis.io.dataset_inventory import ChannelData, DatasetInventory, StationData
 
 
 def make_settings(tmp_path: Path) -> GeoSeisSettings:
