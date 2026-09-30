@@ -4,9 +4,10 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
-from geoseis.configs.configs import GeoSeisSettings, logging
 from obspy import Stream, read, read_inventory
 from obspy.geodetics import gps2dist_azimuth
+
+from geoseis.configs.configs import GeoSeisSettings, logging
 
 
 @dataclass
