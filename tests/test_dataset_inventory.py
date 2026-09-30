@@ -355,3 +355,8 @@ class TestDatasetInventory:
             dataset.inspect_stationXML(xml_dir, all=False, station_name="STA1")
         with pytest.raises(ValueError, match="station_name"):
             dataset.inspect_stationXML(xml_dir, all=False)
+    
+    def test_inspect_station_xml_rejects_empty_folder(self, tmp_path):
+        settings = make_settings(tmp_path)
+        with pytest.raises(FileNotFoundError, match="No .xml files"):
+            DatasetInventory(settings).inspect_stationXML(settings.RAW_DIR)
