@@ -287,3 +287,19 @@ class TestDatasetInventory:
     def test_read_single_file_and_traces_rejects_empty_input(self, tmp_path):
         with pytest.raises(FileNotFoundError):
             DatasetInventory(make_settings(tmp_path)).read_single_file_and_traces([])
+    
+    def test_inspect_file_extracts_trace_metadata(self, tmp_path, monkeypatch):
+        settings = make_settings(tmp_path)
+        file_path = settings.RAW_DATA_DIR / "STA1" / "one.mseed"
+        monkeypatch.setattr(
+            inventory_module, "read", lambda path: Stream([make_trace()])
+        )
+
+        rows = DatasetInventory(settings).inspect_file(file_path)
+
+        assert len(rows) == 1
+        assert rows[0]["file"] == "STA1/one.mseed"
+        assert rows[0]["station"] == "STA1"
+        assert rows[0]["channel"] == "HHZ"
+        assert rows[0]["number_of_samples"] == 100
+        assert rows[0]["encoding"] == "STEIM2"
