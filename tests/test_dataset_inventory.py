@@ -317,3 +317,25 @@ class TestDatasetInventory:
 
         assert list(result["file"]) == ["a.mseed", "b.mseed"]
         assert len(result) == 2
+    
+    def test_inspect_station_xml_all_and_single_station(self, tmp_path, monkeypatch):
+        settings = make_settings(tmp_path)
+        xml_dir = settings.RAW_DIR / "xml"
+        xml_dir.mkdir()
+        first = xml_dir / "XX.STA1.xml"
+        second = xml_dir / "XX.STA2.xml"
+        first.touch()
+        second.touch()
+        inventory_by_path = {first: make_inventory("STA1"), second: make_inventory("STA2")}
+        monkeypatch.setattr(
+            inventory_module, "read_inventory", lambda path: inventory_by_path[Path(path)]
+        )
+        dataset = DatasetInventory(settings)
+
+        all_inventories = dataset.inspect_stationXML(xml_dir, all=True)
+        one_inventory = dataset.inspect_stationXML(
+            xml_dir, all=False, station_name="STA2"
+        )
+
+        assert all_inventories == [inventory_by_path[first], inventory_by_path[second]]
+        assert one_inventory is inventory_by_path[second]
